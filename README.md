@@ -20,7 +20,7 @@ Monthly GP pace preserves PNL's projection, including Paul's daily sheet when
 available. Weekly pace = WTD actual / elapsed PNL working days × full-week PNL
 working days. Daily GP is the WTD average, not a fabricated current-day amount.
 Weekly/daily shop GP goals are prorated from PNL's monthly goal. Technician hours
-use completed approved jobs. Advisor GP uses PNL's advisor calculation; shop GP
+use completed approved jobs. Advisor GP and the adjacent net sales are based on tickets posted/closed during the selected week, credited to the ticket's service writer. Advisor GP uses PNL's advisor calculation; shop GP
 uses its scoreboard calculation (different labor costing). Car count is posted
 repair orders, not unique vehicles. Monthly car pace is PNL's existing tracking.
 

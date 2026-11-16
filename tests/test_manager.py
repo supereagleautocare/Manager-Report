@@ -25,7 +25,7 @@ def source():
                       dict(label='Close rate',kind='pct',actual=.34,goal=.50),
                       dict(label='Cars posted',kind='num',actual=100,goal=440,pace=237.5)],
                 techs=[dict(name='Robert',actual=17.6,goal=20),dict(name='Mike',actual=30,goal=40)],
-                advisors=[dict(name='Enoch',role='Service Advisor',actual=12000,goal=16500)])
+                advisors=[dict(name='Enoch',role='Service Advisor',actual=12000,sales=20000,goal=16500)])
 
 
 def test_pace_uses_source_working_days_and_keeps_paul_projection(source):
@@ -37,6 +37,9 @@ def test_pace_uses_source_working_days_and_keeps_paul_projection(source):
     assert data['techs'][0]['pace'] == pytest.approx(17.6 / 3 * 5)
     assert data['kpis'][1]['gap'] == pytest.approx(-.16)
     assert data['kpis'][2]['gap'] == 237.5 - 440
+    assert data['advisors'][0]['actual'] == 12000
+    assert data['advisors'][0]['sales'] == 20000
+    assert data['totals']['advisors']['sales'] == 20000
     source['calendar'].update(week_total=4, month_total=20)
     source['gp']['month_goal'] = 120000
     updated = dashboard(source, {})
@@ -67,13 +70,15 @@ def test_feed_projects_only_safe_fields(source):
                   month={'start':'2026-11-01','end':'2026-11-30','days_open':19,'days_worked':8},
                   freshness=source['freshness'], totals_mtd={'close_ratio':.34}, goals={'close_ratio':.5},
                   techs={'each':[{'name':'Robert','hours_turned':17.6,'hours_goal_week':20,'total_pay':999}]},
-                  advisors={'each':[{'name':'Enoch','role':'Service Advisor','gp':12000,'gp_goal':9900}]},
+                  advisors={'each':[{'name':'Enoch','role':'Service Advisor','gp':12000,'net_sales':20000,'gp_goal':9900}]},
                   raw_customer='must never appear', front={'tracking_from_paul':True,'scoreboard':[
                       {'label':label,'week':18000,'mtd':48000,'mtd_goal':125400,'tracking':100000}
                       for label in ['Gross profit','Average ticket','Average quote','GP per billed hour','Cars posted']]})
     result = feed.project(report,5,'now')
     assert result['techs'][0]['goal'] == 20
     assert result['advisors'][0]['goal'] == 16500
+    assert result['advisors'][0]['actual'] == 12000
+    assert result['advisors'][0]['sales'] == 20000
     assert 'raw_customer' not in str(result)
     assert 'total_pay' not in str(result)
     assert result['gp']['month_pace'] == 100000

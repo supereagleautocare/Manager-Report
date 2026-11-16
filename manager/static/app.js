@@ -14,11 +14,13 @@ function badge(gap, kind) {
   return node('span', gap === 0 ? 'On goal' : `${text} ${gap > 0 ? 'above' : 'below'}`, `badge ${gap < 0 ? 'behind' : ''}`);
 }
 function showNotice(message, cls = '') { const n = $('#notice'); n.textContent = message; n.className = `notice ${cls}`; n.hidden = !message; }
-function rows(target, items, total) {
+function rows(target, items, total, showSales = false) {
   const tbody = $(target); tbody.replaceChildren();
   for (const row of [...items, ...(total ? [total] : [])]) {
     const tr = node('tr'); if (row === total) tr.className = 'total';
-    tr.append(node('td', row.label), node('td', fmt(row.actual, row.kind)),
+    tr.append(node('td', row.label));
+    if (showSales) tr.append(node('td', fmt(row.sales, 'money')));
+    tr.append(node('td', fmt(row.actual, row.kind)),
               node('td', fmt(row.pace, row.kind)), node('td', fmt(row.goal, row.kind)));
     const cell = node('td'); cell.append(badge(row.gap, row.kind)); tr.append(cell); tbody.append(tr);
   }
@@ -39,7 +41,7 @@ function render(data) {
     bar.setAttribute('aria-label', `${row.label}: ${Math.round(bar.value)}% of goal`);
     card.append(bar, badge(row.gap,'money')); $('#gp-cards').append(card);
   });
-  rows('#kpis', data.kpis); rows('#techs', data.techs, data.totals.techs); rows('#advisors', data.advisors, data.totals.advisors);
+  rows('#kpis', data.kpis); rows('#techs', data.techs, data.totals.techs); rows('#advisors', data.advisors, data.totals.advisors, true);
   const fields = $('#goal-fields'), summary = node('div', undefined, 'personal-list');
   if (!dirty) fields.replaceChildren();
   for (const key of ['techs','advisors']) for (const person of data[key]) {

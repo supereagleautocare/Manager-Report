@@ -34,7 +34,7 @@ def project(report, week_total, generated_at):
                 techs=[dict(name=p['name'], actual=p['hours_turned'],
                             goal=p['hours_goal_week'] * week_total / 5)
                        for p in report['techs']['each']],
-                advisors=[dict(name=p['name'], role=p['role'], actual=p['gp'],
+                advisors=[dict(name=p['name'], role=p['role'], actual=p['gp'], sales=p['net_sales'],
                                goal=p['gp_goal'] / elapsed * week_total
                                if p['gp_goal'] is not None and elapsed else None)
                           for p in report['advisors']['each']], kpis=kpis)

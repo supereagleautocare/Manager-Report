@@ -36,7 +36,7 @@ def dashboard(source, personal):
             target = personal.get(f"{section}:{person['name']}")
             output.append(metric(person['name'], 'hours' if key == 'hours' else 'money', person['actual'],
                                  person['goal'], multiply(divide(person['actual'], worked), week_days),
-                                 personal=target, role=person.get('role', ''),
+                                 personal=target, role=person.get('role', ''), sales=person.get('sales'),
                                  personal_gap=(multiply(divide(person['actual'], worked), week_days) - target)
                                  if target is not None and worked else None))
     totals = {}
@@ -46,6 +46,8 @@ def dashboard(source, personal):
                              sum(r['actual'] for r in rows),
                              sum(r['goal'] for r in rows) if rows and all(r['goal'] is not None for r in rows) else None,
                              multiply(divide(sum(r['actual'] for r in rows), worked), week_days))
+        if key == 'advisors':
+            totals[key]['sales'] = sum(r['sales'] for r in rows) if rows and all(r['sales'] is not None for r in rows) else None
     return dict(source=source, gp_rows=gp_rows, kpis=kpis, techs=techs, advisors=advisors, totals=totals)
 
 
