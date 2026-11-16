@@ -1,6 +1,7 @@
 """Presentation only. Source calculations and working days belong to PNL."""
 import math
 from .reference import comparison
+from .working_days import apply as apply_working_days
 
 
 def divide(value, divisor):
@@ -17,7 +18,8 @@ def metric(label, kind, actual, goal, pace=None, **extra):
                 gap=comparison - goal if comparison is not None and goal is not None else None, **extra)
 
 
-def dashboard(source, personal):
+def dashboard(source, personal, working_days=None):
+    source, calendar_settings = apply_working_days(source, working_days or {})
     days = source['calendar']
     worked, week_days = days['week_elapsed'], days['week_total']
     gp = source['gp']
@@ -51,7 +53,7 @@ def dashboard(source, personal):
                              multiply(divide(total_actual, worked), week_days))
         if key == 'advisors':
             totals[key]['sales'] = sum(r['sales'] for r in rows) if rows and all(r['sales'] is not None for r in rows) else None
-    result = dict(source=source, gp_rows=gp_rows, kpis=kpis, techs=techs, advisors=advisors, totals=totals)
+    result = dict(source=source, gp_rows=gp_rows, kpis=kpis, techs=techs, advisors=advisors, totals=totals, calendar_settings=calendar_settings)
     result['reconciliation'] = comparison(result)
     return result
 

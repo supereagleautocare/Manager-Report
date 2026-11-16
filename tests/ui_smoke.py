@@ -67,6 +67,32 @@ def main():
                 page.locator('#reconciliation').wait_for(state='visible')
                 assert page.locator('#reference-rows tr').count() >= 10
                 page.screenshot(path=str(artifacts/'manager-reference-test.png'),full_page=True)
+                assert 'Week at a Glance notes 21' in page.locator('#calendar-note').inner_text()
+                page.get_by_role('button',name='Edit working days',exact=True).click()
+                page.get_by_label('Month working days',exact=True).fill('21')
+                page.get_by_role('button',name='Save working days',exact=True).click()
+                page.get_by_text('Working days saved. Pace calculations updated.',exact=True).wait_for()
+                assert 'Month: day 8 / 21' in page.locator('#working-days').inner_text()
+                assert 'Working days differ' not in page.locator('#calendar-note').inner_text()
+                assert '$126,000' in page.locator('#gp-cards').inner_text()
+                page.reload(); page.locator('#report').wait_for(state='visible')
+                assert 'Month: day 8 / 21' in page.locator('#working-days').inner_text()
+                page.get_by_role('button',name='Edit working days',exact=True).click()
+                assert page.get_by_label('Month working days',exact=True).input_value()=='21'
+                page.get_by_label('Month working days',exact=True).fill('20')
+                page.get_by_label('Week working days',exact=True).fill('4')
+                page.get_by_role('button',name='Save working days',exact=True).click()
+                page.get_by_text('Working days saved. Pace calculations updated.',exact=True).wait_for()
+                assert 'manager report 20, Week at a Glance notes 21' in page.locator('#calendar-note').inner_text()
+                assert 'Week: day 3 / 4' in page.locator('#working-days').inner_text()
+                page.screenshot(path=str(artifacts/'working-days-editor.png'),full_page=True)
+                page.emulate_media(media='print')
+                assert page.locator('#calendar-note').is_visible()
+                assert not page.locator('#working-days-form').is_visible()
+                page.emulate_media(media='screen')
+                page.get_by_role('button',name='Use P&L days',exact=True).click()
+                page.get_by_text('Working days reset to P&L.',exact=True).wait_for()
+                assert 'Month: day 8 / 19' in page.locator('#working-days').inner_text()
                 adapter.broken = True
                 page.get_by_role('button', name='Refresh', exact=True).click()
                 page.get_by_text('P&L unavailable The numbers below are from the last successful refresh.', exact=True).wait_for()
@@ -76,7 +102,7 @@ def main():
                 browser.close()
         finally:
             server.shutdown()
-    print('Browser checks passed: sign-in, live report, saved goals, reload, mobile, print, source failure.')
+    print('Browser checks passed: sign-in, report, goals, editable working days, persistence, recalculation, Week at a Glance notes, reset, mobile, print, source failure.')
 
 
 if __name__ == '__main__':

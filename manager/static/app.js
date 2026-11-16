@@ -1,6 +1,6 @@
 const $ = s => document.querySelector(s);
 const number = new Intl.NumberFormat('en-US', {maximumFractionDigits: 0});
-let current = null, loading = false, dirty = false;
+let current = null, loading = false, dirty = false, calendarDirty = false, pendingLoad = null;
 function node(tag, text, cls) { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (cls) n.className = cls; return n; }
 function fmt(value, kind) {
   if (value === null || value === undefined) return '—';
@@ -31,6 +31,21 @@ function render(data) {
   $('#report').hidden = false;
   $('#fetched').textContent = `Read ${timeLabel(s.generated_at)}`;
   $('#working-days').textContent = `Week: day ${c.week_elapsed} / ${c.week_total}  ·  Month: day ${c.month_elapsed} / ${c.month_total}`;
+  const settings=data.calendar_settings, messages=[];
+  if(settings.conflict) messages.push(settings.conflict);
+  else if(Object.keys(settings.applied).length) messages.push('Using manager-edited working days. P&L source values are unchanged.');
+  if(settings.note) messages.push(settings.note);
+  if(!settings.week_at_a_glance) messages.push('Week at a Glance notes comparison is not available yet.');
+  $('#calendar-note').textContent=messages.join(' '); $('#calendar-note').hidden=!messages.length;
+  const original=settings.defaults, baseline=settings.week_at_a_glance;
+  $('#calendar-source-days').textContent=`P&L automatic days: week ${original.week_elapsed}/${original.week_total}, month ${original.month_elapsed}/${original.month_total}.${baseline ? ` Week at a Glance notes: week ${baseline.week_elapsed}/${baseline.week_total}, month ${baseline.month_elapsed}/${baseline.month_total}.` : ''}`;
+  if(!calendarDirty) {
+    for(const input of $('#working-days-form').querySelectorAll('input[data-day-field]')) {
+      const key=input.dataset.dayField; input.value=settings.saved[key] ?? ''; input.placeholder=String(original[key]);
+      const date=new Date(`${s.as_of}T12:00:00`), weekday=(date.getDay()+6)%7;
+      input.max=String(key==='month_total' ? new Date(date.getFullYear(),date.getMonth()+1,0).getDate() : key==='month_elapsed' ? date.getDate() : key==='week_elapsed' ? weekday+1 : 7);
+    }
+  }
   $('#gp-cards').replaceChildren();
   data.gp_rows.forEach((row, i) => {
     const card = node('article', undefined, 'gp-card');
@@ -55,7 +70,8 @@ function render(data) {
   }
   if (!summary.children.length) summary.append(node('span','No manager targets yet. P&L goals are shown above.','muted small'));
   $('#personal-summary').replaceChildren(summary);
-  $('#source-note').textContent = s.basis ? `Shop and advisor GP come from Paul’s saved daily actuals, through ${s.basis.actual_through || 'no actual days yet'}. Working days follow his shop schedule, including closed days. Shop GP pace uses the MTD daily average for the month, week and day. Technician and advisor pace uses WTD actuals. ARO, quotes and posted sales use the current Tekmetric warehouse.` : 'Working days and official goals come from P&L.';
+  const dayBasis=Object.keys(settings.applied).length ? 'Working days use the manager edits noted above.' : 'Automatic working days follow his shop schedule, including closed days.';
+  $('#source-note').textContent = s.basis ? `Shop and advisor GP come from Paul’s saved daily actuals, through ${s.basis.actual_through || 'no actual days yet'}. ${dayBasis} Shop GP pace uses the MTD daily average for the month, week and day. Technician and advisor pace uses WTD actuals. ARO, quotes and posted sales use the current Tekmetric warehouse.` : 'Working days default to P&L; saved manager edits are noted above. Official goals come from P&L.';
   $('#freshness').textContent = `Tekmetric last synced: ${timeLabel(s.freshness.tekmetric)}. Report through ${s.as_of}. Refreshes every 60 seconds while this page is open.`;
   $('#reconciliation').hidden = !data.reconciliation;
   if (data.reconciliation) {
@@ -71,7 +87,12 @@ function render(data) {
     data.reconciliation.notes.forEach(text=>notes.append(node('p',text)));
   }
 }
-async function load(force = false) {
+function load(force=false) {
+  if(pendingLoad) return pendingLoad;
+  pendingLoad=loadReport(force).finally(()=>{pendingLoad=null;});
+  return pendingLoad;
+}
+async function loadReport(force = false) {
   if (loading) return; loading = true; $('#refresh').disabled = true;
   try {
     const query = new URLSearchParams({as_of: $('#as-of').value}); if(force) query.set('refresh','1');
@@ -87,7 +108,10 @@ async function load(force = false) {
 }
 $('#refresh').addEventListener('click',()=>load(true));
 $('#print').addEventListener('click',()=>{ if(current && !loading) window.print(); });
-$('#as-of').addEventListener('change',()=>{ current=null; $('#report').hidden=true; const u=new URL(location.href); u.searchParams.set('as_of',$('#as-of').value); history.replaceState(null,'',u); showNotice('Loading P&L numbers…'); load(); });
+$('#as-of').addEventListener('change',()=>{
+  if(calendarDirty && !window.confirm('Discard unsaved working-day edits before changing the date?')) {$('#as-of').value=current.source.as_of;return;}
+  calendarDirty=false; current=null; $('#report').hidden=true; const u=new URL(location.href); u.searchParams.set('as_of',$('#as-of').value); history.replaceState(null,'',u); showNotice('Loading P&L numbers…'); load();
+});
 $('#toggle-goals').addEventListener('click',()=>{const form=$('#goals-form'); form.hidden=!form.hidden; $('#toggle-goals').setAttribute('aria-expanded',String(!form.hidden));});
 $('#goals-form').addEventListener('input',()=>{dirty=true;});
 $('#goals-form').addEventListener('submit',async event=>{
@@ -97,7 +121,23 @@ $('#goals-form').addEventListener('submit',async event=>{
     const response=await fetch(`/api/goals?as_of=${encodeURIComponent($('#as-of').value)}`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':$('meta[name="csrf-token"]').content},body:JSON.stringify(values)});
     if(response.status===401){location.href='/login';return;}
     const data=await response.json(); if(!response.ok) throw Error(data.error || 'Could not save manager goals.');
-    dirty=false; await load(); showNotice('Manager goals saved.');
+    dirty=false; if(loading) await load(); await load(); showNotice('Manager goals saved.');
   }catch(error){showNotice(error.message,'error');}finally{button.disabled=false;}
 });
+$('#toggle-working-days').addEventListener('click',()=>{
+  const form=$('#working-days-form'); form.hidden=!form.hidden; $('#toggle-working-days').setAttribute('aria-expanded',String(!form.hidden));
+});
+$('#working-days-form').addEventListener('input',()=>{calendarDirty=true;});
+async function saveWorkingDays(reset=false) {
+  const form=$('#working-days-form'), buttons=[...form.querySelectorAll('button')]; buttons.forEach(button=>button.disabled=true); $('#as-of').disabled=true;
+  try {
+    const values={}; if(!reset) form.querySelectorAll('input[data-day-field]').forEach(input=>{values[input.dataset.dayField]=input.value;});
+    const response=await fetch(`/api/working-days?as_of=${encodeURIComponent($('#as-of').value)}`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':$('meta[name="csrf-token"]').content},body:JSON.stringify(values)});
+    if(response.status===401){location.href='/login';return;}
+    const result=await response.json(); if(!response.ok) throw Error(result.error || 'Could not save working days.');
+    calendarDirty=false; if(loading) await load(); await load(); showNotice(reset ? 'Working days reset to P&L.' : 'Working days saved. Pace calculations updated.');
+  }catch(error){showNotice(error.message,'error');}finally{buttons.forEach(button=>button.disabled=false);$('#as-of').disabled=false;}
+}
+$('#working-days-form').addEventListener('submit',event=>{event.preventDefault();saveWorkingDays();});
+$('#reset-working-days').addEventListener('click',()=>saveWorkingDays(true));
 load(); setInterval(()=>{if(!document.hidden) load();},60000);

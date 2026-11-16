@@ -42,6 +42,26 @@ across dates and devices until changed, in the manager service's own SQLite file
 People and totals reflect the rows PNL currently includes; missing official goals
 are shown as unset, never zero. Date selection covers the preceding year.
 
+## Editable working days
+
+Use **Edit working days** next to the day counts. Blank fields follow PNL's
+automatic calendar; **Use P&L days** removes the selected period's overrides.
+Week totals are saved for their Monday-start week, month totals for their month,
+and elapsed-day overrides for the selected report date. These values persist on
+the manager volume across devices and deployments. They never edit PNL's source.
+
+Edits recalculate GP pace, staff pace, car-count pace and prorated week/day goals.
+Monthly PNL targets and financial actuals stay unchanged. Counts must be whole
+numbers within the calendar period, with elapsed days no greater than total days.
+If a saved total becomes invalid as days advance, it is not silently clamped:
+the report uses PNL defaults and shows a correction notice.
+
+The PNL feed preserves the structured day counts actually printed on its
+**Week at a Glance** page. A visible, printable note compares those counts with
+the manager report's effective counts, including differences that already exist
+between Paul's daily schedule and Week at a Glance. The note disappears when
+all four counts agree. Saved overrides still carry an explicit edited-days label.
+
 ## Required PNL integration
 
 Railway project: `Tekmetric data base` (`5add58a1-e293-4f7c-ab52-7f98c7e9f647`).

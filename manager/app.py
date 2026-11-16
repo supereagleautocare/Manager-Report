@@ -16,6 +16,7 @@ from flask import Flask, abort, jsonify, redirect, render_template, request, ses
 import requests
 
 from .model import dashboard, validate_goals
+from .working_days import scopes as calendar_scopes, validate as validate_working_days
 
 LOG = logging.getLogger(__name__)
 TZ = ZoneInfo('America/New_York')
@@ -83,6 +84,7 @@ def create_app(config=None, source=None):
         try:
             with conn:
                 conn.execute('CREATE TABLE IF NOT EXISTS goals (name TEXT PRIMARY KEY, value REAL NOT NULL)')
+                conn.execute('CREATE TABLE IF NOT EXISTS working_days (scope TEXT PRIMARY KEY, value INTEGER NOT NULL)')
                 yield conn
         finally:
             conn.close()
@@ -114,10 +116,13 @@ def create_app(config=None, source=None):
         return day.isoformat()
 
     def get_view(force=False):
-        data = client.read(as_of(), force=force)
+        day = as_of()
+        data = client.read(day, force=force)
         with connection() as conn:
             personal = dict(conn.execute('SELECT name, value FROM goals'))
-        return dashboard(data, personal)
+            stored = dict(conn.execute('SELECT scope, value FROM working_days WHERE scope IN (?,?,?,?)', tuple(calendar_scopes(day).values())))
+        saved = {key: stored[scope] for key, scope in calendar_scopes(day).items() if scope in stored}
+        return dashboard(data, personal, saved)
 
     @app.after_request
     def headers(response):
@@ -185,6 +190,24 @@ def create_app(config=None, source=None):
     @app.get('/health')
     def health():
         return jsonify(status='ok')
+
+    @app.post('/api/working-days')
+    @signed_in
+    def save_working_days():
+        csrf()
+        try:
+            day = as_of()
+            data = client.read(day)
+            values = validate_working_days(request.get_json(), data['calendar'], day)
+            scoped = calendar_scopes(day)
+            with connection() as conn:
+                conn.executemany('DELETE FROM working_days WHERE scope = ?', [(value,) for value in scoped.values()])
+                conn.executemany('INSERT INTO working_days(scope, value) VALUES (?, ?)', [(scoped[key], value) for key, value in values.items()])
+            return jsonify(saved=True)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        except SourceUnavailable as exc:
+            return jsonify(error=str(exc)), 503
 
     return app
 

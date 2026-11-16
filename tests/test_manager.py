@@ -19,6 +19,7 @@ def source():
     # Synthetic contract fixture. These are not shop production numbers.
     return dict(schema_version=1, as_of=str(dt.date.today()), generated_at='2026-11-11T12:00:00-05:00',
                 freshness={'tekmetric': '2026-11-11T11:00:00-05:00'}, tracking_from_paul=True,
+                week_at_a_glance_calendar=dict(week_elapsed=3,week_total=5,month_elapsed=8,month_total=21),
                 calendar=dict(week_start='2026-11-09', week_elapsed=3, week_total=5, month_elapsed=8, month_total=19),
                 gp=dict(week=18000, mtd=48000, month_goal=125400, month_pace=100000),
                 kpis=[dict(label='Average repair order',kind='money',actual=477,goal=600),
@@ -113,6 +114,7 @@ def test_feed_projects_only_safe_fields(source):
     assert result['advisors'][0]['goal'] == 16500
     assert result['advisors'][0]['actual'] == 12000
     assert result['advisors'][0]['sales'] == 20000
+    assert result['week_at_a_glance_calendar']['month_total']==19
     assert 'raw_customer' not in str(result)
     assert 'total_pay' not in str(result)
     assert result['gp']['month_pace'] == 100000

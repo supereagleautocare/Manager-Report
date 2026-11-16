@@ -96,10 +96,10 @@ index 0000000..384493e
 +                closed_dates=[str(day) for day in sorted(dated) if day.weekday() < 5 and day not in opened])
 diff --git a/report/manager_feed.py b/report/manager_feed.py
 new file mode 100644
-index 0000000..19a6e73
+index 0000000..4b5a62e
 --- /dev/null
 +++ b/report/manager_feed.py
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,110 @@
 +"""Install as report/manager_feed.py in supereagleautocare/PNL.
 +
 +The feed only reads the existing report. It has no write operations and returns
@@ -140,6 +140,9 @@ index 0000000..19a6e73
 +                               goal=p['gp_goal'] / elapsed * week_total
 +                               if p['gp_goal'] is not None and elapsed else None)
 +                          for p in report['advisors']['each']], kpis=kpis)
++    # These are the exact structured day counts printed on PNL's Week at a
++    # Glance page, retained before the manager's daily-sheet calendar is applied.
++    result['week_at_a_glance_calendar'] = dict(result['calendar'])
 +    if daily is not None:
 +        ratio = daily['week_total'] / week_total if week_total else 0
 +        for person in result['techs'] + result['advisors']:
