@@ -1,0 +1,8 @@
+.git
+.reference-pnl
+.venv
+.env
+data
+tests
+artifacts
+__pycache__

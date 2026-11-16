@@ -1,0 +1,5 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in · Manager report</title><link rel="stylesheet" href="{{ url_for('static',filename='style.css') }}"></head>
+<body class="login-body"><main class="login-card"><div class="brand-mark">SE</div><p class="eyebrow">SUPER EAGLE AUTO CARE</p><h1>A clear view of<br>your shop.</h1><p class="muted">Sign in to your manager report.</p>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+<form method="post"><input type="hidden" name="csrf" value="{{ session.csrf }}"><label>Username<input name="username" autocomplete="username" required autofocus></label><label>Password<input type="password" name="password" autocomplete="current-password" required></label><button class="primary">Sign in</button></form><p class="small muted">Live numbers from your P&amp;L report.</p></main></body></html>

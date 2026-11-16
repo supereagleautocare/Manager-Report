@@ -1,0 +1,72 @@
+"""Install as report/manager_feed.py in supereagleautocare/PNL.
+
+The feed only reads the existing report. It has no write operations and returns
+no raw tickets, customer details, payroll, notes or credentials.
+"""
+import datetime as dt
+import hmac
+import os
+from zoneinfo import ZoneInfo
+
+from flask import abort, jsonify, request
+
+
+def project(report, week_total, generated_at):
+    """Versioned, deliberately narrow contract over the current PNL report."""
+    scoreboard = {r['label']: r for r in report['front']['scoreboard']}
+    gp = scoreboard['Gross profit']
+    kpis = []
+    for label, display, kind in [('Average ticket', 'Average repair order', 'money'),
+                                  ('Average quote', 'Average quote', 'money'),
+                                  ('GP per billed hour', 'GP per billed hour', 'money'),
+                                  ('Cars posted', 'Cars posted', 'num')]:
+        row = scoreboard[label]
+        kpis.append(dict(label=display, kind=kind, actual=row['mtd'], goal=row['mtd_goal'],
+                         pace=row.get('tracking') if label == 'Cars posted' else None))
+    kpis.insert(2, dict(label='Close rate', kind='pct', actual=report['totals_mtd']['close_ratio'],
+                        goal=report['goals']['close_ratio'], pace=None))
+    elapsed = report['days_open']
+    return dict(schema_version=1, as_of=report['end'], generated_at=generated_at,
+                freshness=report['freshness'],
+                calendar=dict(week_start=report['start'], week_elapsed=elapsed, week_total=week_total,
+                              month_start=report['month']['start'], month_end=report['month']['end'],
+                              month_elapsed=report['month']['days_worked'], month_total=report['month']['days_open']),
+                gp=dict(week=gp['week'], mtd=gp['mtd'], month_goal=gp['mtd_goal'], month_pace=gp['tracking']),
+                tracking_from_paul=report['front']['tracking_from_paul'],
+                techs=[dict(name=p['name'], actual=p['hours_turned'],
+                            goal=p['hours_goal_week'] * week_total / 5)
+                       for p in report['techs']['each']],
+                advisors=[dict(name=p['name'], role=p['role'], actual=p['gp'],
+                               goal=p['gp_goal'] / elapsed * week_total
+                               if p['gp_goal'] is not None and elapsed else None)
+                          for p in report['advisors']['each']], kpis=kpis)
+
+
+def register(app, report_for):
+    @app.get('/internal/manager-report')
+    def manager_report_feed():
+        token = os.getenv('MANAGER_REPORT_TOKEN', '')
+        if not token or not hmac.compare_digest(request.headers.get('Authorization', ''), 'Bearer ' + token):
+            abort(401)
+        # Imports are local so contract tests can run without connecting to PNL.
+        from src import db
+        from src.config import load_config
+        from . import metrics
+
+        now = dt.datetime.now(ZoneInfo('America/New_York'))
+        try:
+            day = dt.date.fromisoformat(request.args.get('as_of', str(now.date())))
+        except ValueError:
+            abort(400)
+        if day > now.date() or day < now.date() - dt.timedelta(days=366):
+            abort(400)
+        monday = day - dt.timedelta(days=day.weekday())
+        with db.connect(load_config().database_url) as conn:
+            # Enforce read-only for the accounting database too. report_for already
+            # enforces read-only on the separate Tekmetric warehouse connection.
+            conn.read_only = True
+            data = report_for(conn, monday, day)
+        result = project(data, metrics.open_days(monday, monday + dt.timedelta(days=6)), now.isoformat())
+        response = jsonify(result)
+        response.headers['Cache-Control'] = 'no-store'
+        return response
