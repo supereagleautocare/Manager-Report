@@ -77,6 +77,8 @@ def test_feed_projects_only_safe_fields(source):
     assert 'raw_customer' not in str(result)
     assert 'total_pay' not in str(result)
     assert result['gp']['month_pace'] == 100000
+    assert len(result['kpis']) == 4
+    assert all(row['label'] != 'Close rate' for row in result['kpis'])
 
 
 def test_feed_requires_dedicated_token(monkeypatch):

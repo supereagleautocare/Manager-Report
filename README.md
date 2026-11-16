@@ -2,7 +2,7 @@
 
 Manager dashboard matching the State of the Union template. It shows technician
 hours, advisor/writer GP, shop monthly/weekly/daily GP, and MTD average RO, average
-quote, close rate, GP per billed hour and cars. It automatically refreshes every
+quote, GP per billed hour and cars. It automatically refreshes every
 60 seconds while open and includes a print layout.
 
 ## One source for the numbers
@@ -23,7 +23,6 @@ Weekly/daily shop GP goals are prorated from PNL's monthly goal. Technician hour
 use completed approved jobs. Advisor GP uses PNL's advisor calculation; shop GP
 uses its scoreboard calculation (different labor costing). Car count is posted
 repair orders, not unique vehicles. Monthly car pace is PNL's existing tracking.
-Close rate is PNL's sold dollars / quoted dollars; its gap is percentage points.
 
 Optional manager goals are separate full-week personal targets. Saving them does
 not override PNL's official goals or update the source databases. Targets persist

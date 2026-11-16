@@ -19,6 +19,7 @@ def main():
     fixture = source.__wrapped__()
     fixture['kpis'].insert(1,dict(label='Average quote',kind='money',actual=1409,goal=1200))
     fixture['kpis'].insert(3,dict(label='GP per billed hour',kind='money',actual=141,goal=150))
+    fixture['kpis'] = [row for row in fixture['kpis'] if row['label'] != 'Close rate']
     fixture['techs'].extend([dict(name=name,actual=20+i,goal=40) for i,name in enumerate(['Ryan','Vegas','Juan','Justin'])])
     class FakeSource:
         broken = False

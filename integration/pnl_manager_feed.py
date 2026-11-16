@@ -23,8 +23,6 @@ def project(report, week_total, generated_at):
         row = scoreboard[label]
         kpis.append(dict(label=display, kind=kind, actual=row['mtd'], goal=row['mtd_goal'],
                          pace=row.get('tracking') if label == 'Cars posted' else None))
-    kpis.insert(2, dict(label='Close rate', kind='pct', actual=report['totals_mtd']['close_ratio'],
-                        goal=report['goals']['close_ratio'], pace=None))
     elapsed = report['days_open']
     return dict(schema_version=1, as_of=report['end'], generated_at=generated_at,
                 freshness=report['freshness'],

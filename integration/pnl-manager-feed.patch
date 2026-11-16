@@ -1,20 +1,9 @@
-diff --git a/report/web.py b/report/web.py
-index 07f628e..842e781 100644
---- a/report/web.py
-+++ b/report/web.py
-@@ -427,3 +427,6 @@ from .pricing_web import register as register_pricing
- register_pricing(app)
- from .setup_web import register as register_setup
- register_setup(app)
-+
-+from .manager_feed import register as register_manager_feed
-+register_manager_feed(app, report_for)
 diff --git a/report/manager_feed.py b/report/manager_feed.py
 new file mode 100644
-index 0000000..cd09329
+index 0000000..6d931b5
 --- /dev/null
 +++ b/report/manager_feed.py
-@@ -0,0 +1,72 @@
+@@ -0,0 +1,70 @@
 +"""Install as report/manager_feed.py in supereagleautocare/PNL.
 +
 +The feed only reads the existing report. It has no write operations and returns
@@ -40,8 +29,6 @@ index 0000000..cd09329
 +        row = scoreboard[label]
 +        kpis.append(dict(label=display, kind=kind, actual=row['mtd'], goal=row['mtd_goal'],
 +                         pace=row.get('tracking') if label == 'Cars posted' else None))
-+    kpis.insert(2, dict(label='Close rate', kind='pct', actual=report['totals_mtd']['close_ratio'],
-+                        goal=report['goals']['close_ratio'], pace=None))
 +    elapsed = report['days_open']
 +    return dict(schema_version=1, as_of=report['end'], generated_at=generated_at,
 +                freshness=report['freshness'],
@@ -87,3 +74,14 @@ index 0000000..cd09329
 +        response = jsonify(result)
 +        response.headers['Cache-Control'] = 'no-store'
 +        return response
+diff --git a/report/web.py b/report/web.py
+index 07f628e..842e781 100644
+--- a/report/web.py
++++ b/report/web.py
+@@ -427,3 +427,6 @@ from .pricing_web import register as register_pricing
+ register_pricing(app)
+ from .setup_web import register as register_setup
+ register_setup(app)
++
++from .manager_feed import register as register_manager_feed
++register_manager_feed(app, report_for)
