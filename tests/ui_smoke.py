@@ -17,6 +17,9 @@ from test_manager import source
 
 def main():
     fixture = source.__wrapped__()
+    # Reproduce the reported confusing case: no current-week posted GP, with
+    # valid daily pace from MTD actuals. The UI must not display "Actual —".
+    fixture['gp'].update(week=None,daily_pace=6000,month_pace=114000)
     fixture['kpis'].insert(1,dict(label='Average quote',kind='money',actual=1409,goal=1200))
     fixture['kpis'].insert(3,dict(label='GP per billed hour',kind='money',actual=141,goal=150))
     fixture['kpis'] = [row for row in fixture['kpis'] if row['label'] != 'Close rate']
@@ -50,7 +53,11 @@ def main():
                 page.get_by_label('Password').fill('test-password')
                 page.get_by_role('button', name='Sign in', exact=True).click()
                 page.locator('#report').wait_for(state='visible')
-                assert page.locator('#gp-cards').inner_text().count('$100,000') == 1
+                assert page.locator('#gp-cards').inner_text().count('$114,000') == 1
+                assert page.locator('#gp-cards .gp-line').count()==3
+                assert 'Actual' not in page.locator('#gp-cards').inner_text()
+                assert 'GP earned this month: $48,000'==page.locator('#gp-earned').inner_text()
+                assert '$30,000' in page.locator('#gp-cards .gp-line').nth(1).inner_text()
                 page.get_by_role('button', name='Edit goals').click()
                 page.locator('input[data-key="techs:Robert"]').fill('45')
                 page.get_by_role('button', name='Save manager goals').click()

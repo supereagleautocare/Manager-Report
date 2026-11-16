@@ -46,16 +46,24 @@ function render(data) {
       input.max=String(key==='month_total' ? new Date(date.getFullYear(),date.getMonth()+1,0).getDate() : key==='month_elapsed' ? date.getDate() : key==='week_elapsed' ? weekday+1 : 7);
     }
   }
+  const earned=s.gp.mtd;
+  $('#gp-earned').textContent=earned===null ? 'GP earned this month: waiting for data' : `GP earned this month: ${fmt(earned,'money')}`;
+  const through=s.basis?.actual_through;
+  const throughLabel=through ? new Date(`${through}T12:00:00`).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : null;
+  $('#gp-days').textContent=`${c.month_elapsed} of ${c.month_total} working days elapsed${throughLabel ? ` · Saved GP through ${throughLabel}` : ''}`;
   $('#gp-cards').replaceChildren();
   data.gp_rows.forEach((row, i) => {
-    const card = node('article', undefined, 'gp-card');
-    card.append(node('h3', row.label), node('div', fmt(i < 2 ? row.pace : row.actual, 'money'), 'big-number'), node('p', i < 2 ? 'on pace' : 'per elapsed working day', 'muted small'));
-    const detail = node('div', undefined, 'card-detail'); detail.append(node('span', `Actual ${fmt(row.actual,'money')}`), node('span', `Goal ${fmt(row.goal,'money')}`)); card.append(detail);
-    const bar = node('progress', undefined, 'progress'); bar.max = 100;
-    bar.value = row.goal > 0 ? Math.max(0, Math.min(100, 100 * (row.pace ?? row.actual ?? 0) / row.goal)) : 0;
-    bar.setAttribute('aria-label', `${row.label}: ${Math.round(bar.value)}% of goal`);
-    card.append(bar, badge(row.gap,'money')); $('#gp-cards').append(card);
+    const line=node('article',undefined,'gp-line');
+    const period=node('div',undefined,'gp-period');
+    period.append(node('h3',['Monthly','Weekly','Daily'][i]),node('span',`${[c.month_total,c.week_total,1][i]} working ${i===2?'day':'days'}`,'small muted'));
+    const pace=node('div',undefined,'gp-amount'); pace.append(node('span','At this pace','gp-mobile-label'),node('strong',fmt(i<2 ? row.pace : row.actual,'money')));
+    const target=node('div',undefined,'gp-target'); target.append(node('span','Goal','gp-mobile-label'),node('strong',fmt(row.goal,'money')));
+    const difference=node('div',undefined,'gp-difference');
+    const status=row.gap===null && row.goal!==null ? node('span','Waiting for GP data','badge unset') : badge(row.gap,'money');
+    if(row.gap!==null) status.textContent=row.gap===0 ? 'On goal' : `${fmt(Math.abs(row.gap),'money')} ${row.gap>0?'above':'below'} goal`;
+    difference.append(status); line.append(period,pace,target,difference); $('#gp-cards').append(line);
   });
+  $('#gp-explanation').textContent=`Daily pace = GP earned this month ÷ ${c.month_elapsed} elapsed working days. Weekly pace = daily pace × ${c.week_total}. Monthly pace = daily pace × ${c.month_total}.`;
   rows('#kpis', data.kpis); rows('#techs', data.techs, data.totals.techs); rows('#advisors', data.advisors, data.totals.advisors, true);
   const fields = $('#goal-fields'), summary = node('div', undefined, 'personal-list');
   if (!dirty) fields.replaceChildren();

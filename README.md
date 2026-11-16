@@ -5,6 +5,11 @@ hours, advisor/writer GP, shop monthly/weekly/daily GP, and MTD average RO, aver
 quote, GP per billed hour and cars. It automatically refreshes every
 60 seconds while open and includes a print layout.
 
+The GP section shows earned MTD GP once, then a consistent monthly/weekly/daily
+pace-versus-goal table. Each row states its working days and above/below-goal
+amount. The weekly figure is explicitly derived from the month's daily average;
+it is not labeled as this week's actual GP.
+
 ## One source for the numbers
 
 The app reads the running **PNL Report** service, rather than duplicating its
