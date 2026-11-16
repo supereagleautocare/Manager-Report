@@ -63,6 +63,10 @@ def main():
                 page.set_viewport_size({'width': 390, 'height': 844})
                 page.screenshot(path=str(artifacts/'manager-mobile.png'), full_page=True)
                 assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+                page.goto(f'http://127.0.0.1:{server.server_port}/?as_of=2026-11-11')
+                page.locator('#reconciliation').wait_for(state='visible')
+                assert page.locator('#reference-rows tr').count() >= 10
+                page.screenshot(path=str(artifacts/'manager-reference-test.png'),full_page=True)
                 adapter.broken = True
                 page.get_by_role('button', name='Refresh', exact=True).click()
                 page.get_by_text('P&L unavailable The numbers below are from the last successful refresh.', exact=True).wait_for()

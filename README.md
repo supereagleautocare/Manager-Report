@@ -13,16 +13,28 @@ official goals, actuals and monthly tracking. Changes to those values or PNL's
 existing calculations appear on refresh. If PNL changes its feed contract, the
 feed must retain schema version 1 or the manager app must be updated with it.
 
-The existing PNL calendar currently counts Monday–Friday; this app uses that
-calendar and does not introduce its own holiday assumptions.
+The manager feed reads Paul's saved Daily Business Analysis daily GP actuals and
+working-day allocations. This preserves the shop's closed days (November 26?27
+are closed in the current 2026 workbook). Forecast rows are excluded: Paul's
+sheet distinguishes them by receipts below $0.01. Missing actual dates are shown
+as a warning, never counted as saved sales. The underlying PNL scoreboard and its
+payroll-based calculations are unchanged.
 
-Monthly GP pace preserves PNL's projection, including Paul's daily sheet when
-available. Weekly pace = WTD actual / elapsed PNL working days × full-week PNL
-working days. Daily GP is the WTD average, not a fabricated current-day amount.
-Weekly/daily shop GP goals are prorated from PNL's monthly goal. Technician hours
-use completed approved jobs. Advisor GP and the adjacent net sales are based on tickets posted/closed during the selected week, credited to the ticket's service writer. Advisor GP uses PNL's advisor calculation; shop GP
-uses its scoreboard calculation (different labor costing). Car count is posted
-repair orders, not unique vehicles. Monthly car pace is PNL's existing tracking.
+Monthly, weekly and daily shop GP pace all use the same MTD daily average:
+MTD saved GP / elapsed shop working days, multiplied by the period's working
+days. The month-end total in Paul's workbook contains future forecasts and is
+not used as MTD actual GP. Advisor GP uses his daily advisor-margin columns for
+the selected week's posted sales; the table includes Service Advisors only.
+Posted sales, ARO, average quote and technician completed hours use the current
+Tekmetric warehouse. GP/hour uses Paul's saved GP / saved billed hours. Car pace
+uses posted ROs / elapsed days ? month working days; these are ROs, not unique
+vehicles. Staff weekly pace still uses each person's WTD actual.
+
+Chris Rapp is displayed as Vegas, as confirmed by the user. Persistent manager
+goals remain keyed to the full employee name. Official goals remain linked to
+PNL; the older reference's goals are not substituted. Selecting November 11 shows
+a reference comparison, including discrepancies in the reference's printed totals.
+Reference values never replace calculated actuals.
 
 Optional manager goals are separate full-week personal targets. Saving them does
 not override PNL's official goals or update the source databases. Targets persist
@@ -34,7 +46,8 @@ are shown as unset, never zero. Date selection covers the preceding year.
 
 Railway project: `Tekmetric data base` (`5add58a1-e293-4f7c-ab52-7f98c7e9f647`).
 
-1. Copy `integration/pnl_manager_feed.py` to `report/manager_feed.py` in
+1. Copy `integration/pnl_manager_feed.py` to `report/manager_feed.py` and
+   `integration/pnl_manager_daily.py` to `report/manager_daily.py` in
    `supereagleautocare/PNL`.
 2. Append these two lines to `report/web.py`:
 

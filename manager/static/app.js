@@ -47,7 +47,7 @@ function render(data) {
   for (const key of ['techs','advisors']) for (const person of data[key]) {
     if (!dirty) {
       const label = node('label', `${person.label} · ${key === 'techs' ? 'hours / week' : 'GP $ / week'}`);
-      const input = node('input'); input.type = 'number'; input.min = '0'; input.max = '1000000'; input.step = '0.01'; input.dataset.key = `${key}:${person.label}`; input.value = person.personal ?? ''; input.placeholder = 'Optional manager target'; label.append(input); fields.append(label);
+      const input = node('input'); input.type = 'number'; input.min = '0'; input.max = '1000000'; input.step = '0.01'; input.dataset.key = person.goal_key; input.value = person.personal ?? ''; input.placeholder = 'Optional manager target'; label.append(input); fields.append(label);
     }
     if (person.personal !== null && person.personal !== undefined) {
       const item = node('div', undefined, 'personal-item'); item.append(node('strong', person.label), node('span', `Target ${fmt(person.personal,person.kind)} · `), badge(person.personal_gap,person.kind)); summary.append(item);
@@ -55,8 +55,21 @@ function render(data) {
   }
   if (!summary.children.length) summary.append(node('span','No manager targets yet. P&L goals are shown above.','muted small'));
   $('#personal-summary').replaceChildren(summary);
-  $('#source-note').textContent = `Working days and official goals come from P&L. Month GP pace uses ${s.tracking_from_paul ? "Paul’s daily-sheet projection" : 'the P&L working-day pace'}. Advisor GP follows the P&L advisor calculation; shop GP follows its shop scoreboard and may use a different labor-cost basis.`;
+  $('#source-note').textContent = s.basis ? `Shop and advisor GP come from Paul’s saved daily actuals, through ${s.basis.actual_through || 'no actual days yet'}. Working days follow his shop schedule, including closed days. Shop GP pace uses the MTD daily average for the month, week and day. Technician and advisor pace uses WTD actuals. ARO, quotes and posted sales use the current Tekmetric warehouse.` : 'Working days and official goals come from P&L.';
   $('#freshness').textContent = `Tekmetric last synced: ${timeLabel(s.freshness.tekmetric)}. Report through ${s.as_of}. Refreshes every 60 seconds while this page is open.`;
+  $('#reconciliation').hidden = !data.reconciliation;
+  if (data.reconciliation) {
+    const body=$('#reference-rows'); body.replaceChildren();
+    for (const r of data.reconciliation.rows) {
+      const tr=node('tr');
+      tr.append(node('td',r.label),node('td',`${fmt(r.reference,r.kind)} / ${fmt(r.reference_goal,r.kind)}`),
+                node('td',`${fmt(r.calculated,r.kind)} / ${fmt(r.goal,r.kind)}`),
+                node('td',r.difference===null ? '—' : `${r.difference>0?'+':''}${fmt(r.difference,r.kind)}`));
+      body.append(tr);
+    }
+    const notes=$('#reference-notes'); notes.replaceChildren();
+    data.reconciliation.notes.forEach(text=>notes.append(node('p',text)));
+  }
 }
 async function load(force = false) {
   if (loading) return; loading = true; $('#refresh').disabled = true;
@@ -65,7 +78,9 @@ async function load(force = false) {
     const response = await fetch(`/api/report?${query}`, {cache:'no-store'});
     if(response.status === 401) { location.href='/login'; return; }
     const data = await response.json(); if(!response.ok) throw Error(data.error || 'Unable to refresh the report.');
-    render(data); showNotice('');
+    render(data);
+    const missing = data.source.basis?.missing_actual_dates || [];
+    showNotice(missing.length ? `Paul’s daily actuals are not yet available for ${missing.join(', ')}. Forecast rows are excluded from GP.` : '', missing.length ? 'warning' : '');
   } catch(error) {
     showNotice(`${error.message}${current ? ' The numbers below are from the last successful refresh.' : ''}`, current ? 'warning' : 'error');
   } finally {loading=false; $('#refresh').disabled=false;}

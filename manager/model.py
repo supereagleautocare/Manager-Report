@@ -1,5 +1,6 @@
 """Presentation only. Source calculations and working days belong to PNL."""
 import math
+from .reference import comparison
 
 
 def divide(value, divisor):
@@ -21,34 +22,38 @@ def dashboard(source, personal):
     worked, week_days = days['week_elapsed'], days['week_total']
     gp = source['gp']
     daily_goal = divide(gp['month_goal'], days['month_total'])
-    # PNL's monthly tracking is retained, including Paul's daily-sheet projection.
-    # Weekly pace is explicitly straight-line from this week's working days.
+    daily_pace = gp.get('daily_pace', divide(gp['week'], worked))
+    # The manager template uses the same MTD daily average for monthly, weekly
+    # and daily shop GP pace. Individual staff pace still uses WTD actuals.
     gp_rows = [
         metric('Monthly gross profit', 'money', gp['mtd'], gp['month_goal'], gp['month_pace']),
         metric('Weekly gross profit', 'money', gp['week'], multiply(daily_goal, week_days),
-               multiply(divide(gp['week'], worked), week_days)),
-        metric('Daily gross profit · average', 'money', divide(gp['week'], worked), daily_goal),
+               multiply(daily_pace, week_days)),
+        metric('Daily gross profit · average', 'money', daily_pace, daily_goal),
     ]
     kpis = [metric(x['label'], x['kind'], x['actual'], x['goal'], x.get('pace')) for x in source['kpis']]
     techs, advisors = [], []
     for section, key, output in [('techs', 'hours', techs), ('advisors', 'gp', advisors)]:
         for person in source[section]:
             target = personal.get(f"{section}:{person['name']}")
-            output.append(metric(person['name'], 'hours' if key == 'hours' else 'money', person['actual'],
+            output.append(metric(person.get('display_name', person['name']), 'hours' if key == 'hours' else 'money', person['actual'],
                                  person['goal'], multiply(divide(person['actual'], worked), week_days),
-                                 personal=target, role=person.get('role', ''), sales=person.get('sales'),
+                                 personal=target, role=person.get('role', ''), sales=person.get('sales'), goal_key=f"{section}:{person['name']}",
                                  personal_gap=(multiply(divide(person['actual'], worked), week_days) - target)
-                                 if target is not None and worked else None))
+                                 if target is not None and worked and person['actual'] is not None else None))
     totals = {}
     for key, rows in [('techs', techs), ('advisors', advisors)]:
         # Sum the displayed people, never compare all writers with only advisors' goals.
+        total_actual = sum(r['actual'] for r in rows) if rows and all(r['actual'] is not None for r in rows) else None
         totals[key] = metric('Total shown', 'hours' if key == 'techs' else 'money',
-                             sum(r['actual'] for r in rows),
+                             total_actual,
                              sum(r['goal'] for r in rows) if rows and all(r['goal'] is not None for r in rows) else None,
-                             multiply(divide(sum(r['actual'] for r in rows), worked), week_days))
+                             multiply(divide(total_actual, worked), week_days))
         if key == 'advisors':
             totals[key]['sales'] = sum(r['sales'] for r in rows) if rows and all(r['sales'] is not None for r in rows) else None
-    return dict(source=source, gp_rows=gp_rows, kpis=kpis, techs=techs, advisors=advisors, totals=totals)
+    result = dict(source=source, gp_rows=gp_rows, kpis=kpis, techs=techs, advisors=advisors, totals=totals)
+    result['reconciliation'] = comparison(result)
+    return result
 
 
 def validate_goals(payload, allowed):

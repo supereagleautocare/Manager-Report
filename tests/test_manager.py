@@ -59,6 +59,40 @@ def test_missing_values_zero_goals_and_personal_goals(source):
     assert data['totals']['advisors']['goal'] is None
 
 
+def test_mtd_shop_gp_pace_is_consistent_across_all_periods(source):
+    source['calendar']['month_total'] = 19
+    source['gp'].update(mtd=38549.47, month_pace=38549.47 / 8 * 19, daily_pace=38549.47 / 8)
+    data=dashboard(source,{})
+    assert data['gp_rows'][0]['pace']==pytest.approx(91554.99125)
+    assert data['gp_rows'][1]['pace']==pytest.approx(24093.41875)
+    assert data['gp_rows'][2]['actual']==pytest.approx(4818.68375)
+
+
+def test_alias_keeps_persistent_goal_identity_and_missing_advisor_data(source):
+    source['techs'][0].update(name='Chris Rapp',display_name='Vegas')
+    source['advisors'][0]['actual']=None
+    data=dashboard(source,{'techs:Chris Rapp':30,'advisors:Enoch':16500})
+    assert data['techs'][0]['label']=='Vegas'
+    assert data['techs'][0]['goal_key']=='techs:Chris Rapp'
+    assert data['techs'][0]['personal']==30
+    assert data['advisors'][0]['gap'] is None
+    assert data['advisors'][0]['personal_gap'] is None
+    assert data['totals']['advisors']['actual'] is None
+
+
+def test_reference_is_only_a_comparison_and_never_replaces_actuals(source):
+    source['as_of']='2026-11-11'
+    source['techs'][0].update(name='Robert Decker',display_name='Robert')
+    data=dashboard(source,{})
+    row=data['reconciliation']['rows'][0]
+    assert row['reference']==17.6
+    assert row['calculated']==pytest.approx(17.6/3*5)
+    assert row['difference']!=0
+    assert data['techs'][0]['actual']==17.6
+    source['as_of']='2026-11-12'
+    assert dashboard(source,{})['reconciliation'] is None
+
+
 @pytest.mark.parametrize('value', ['nan','inf',-1,True,'no',1000001,[],{}])
 def test_goal_validation(value):
     with pytest.raises(ValueError):
@@ -84,6 +118,17 @@ def test_feed_projects_only_safe_fields(source):
     assert result['gp']['month_pace'] == 100000
     assert len(result['kpis']) == 4
     assert all(row['label'] != 'Close rate' for row in result['kpis'])
+    saved_daily=dict(week_elapsed=3,week_total=5,month_elapsed=8,month_total=19,
+                     gp_week=15972.8,gp_mtd=38549.47,gp_month_pace=38549.47/8*19,
+                     gp_per_hour=141.585,advisor_margins={'enoch':8161.62},
+                     actual_through='2026-11-11',missing_actual_dates=[],closed_dates=['2026-11-26','2026-11-27'])
+    daily_result=feed.project(report,5,'now',saved_daily)
+    assert daily_result['calendar']['month_total']==19
+    assert daily_result['gp']['mtd']==38549.47
+    assert daily_result['gp']['daily_pace']==pytest.approx(4818.68375)
+    assert daily_result['advisors'][0]['actual']==8161.62
+    assert daily_result['advisors'][0]['goal']==16500
+    assert next(row for row in daily_result['kpis'] if row['label']=='GP per billed hour')['actual']==141.585
 
 
 def test_feed_requires_dedicated_token(monkeypatch):

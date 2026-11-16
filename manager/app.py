@@ -1,4 +1,5 @@
 import datetime as dt
+from contextlib import contextmanager
 import functools
 import hmac
 import logging
@@ -74,12 +75,17 @@ def create_app(config=None, source=None):
         app.config.update(config)
     client = source or PNLClient()
 
+    @contextmanager
     def connection():
         path = Path(app.config['GOALS_PATH'])
         path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(path, timeout=10)
-        conn.execute('CREATE TABLE IF NOT EXISTS goals (name TEXT PRIMARY KEY, value REAL NOT NULL)')
-        return conn
+        try:
+            with conn:
+                conn.execute('CREATE TABLE IF NOT EXISTS goals (name TEXT PRIMARY KEY, value REAL NOT NULL)')
+                yield conn
+        finally:
+            conn.close()
 
     def signed_in(view):
         @functools.wraps(view)
