@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
 import requests
 
-from .model import dashboard, validate_goals
+from .model import dashboard, goal_keys, validate_goals
 from .working_days import scopes as calendar_scopes, validate as validate_working_days
 
 LOG = logging.getLogger(__name__)
@@ -175,7 +175,7 @@ def create_app(config=None, source=None):
         csrf()
         try:
             data = client.read(as_of())
-            allowed = {f'{key}:{p["name"]}' for key in ('techs', 'advisors') for p in data[key]}
+            allowed = goal_keys(data)
             values = validate_goals(request.get_json(), allowed)
             with connection() as conn:
                 # Only replace the currently displayed people's optional goals.

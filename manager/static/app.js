@@ -66,19 +66,34 @@ function render(data) {
   $('#gp-explanation').textContent=`Daily pace = GP earned this month ÷ ${c.month_elapsed} elapsed working days. Weekly pace = daily pace × ${c.week_total}. Monthly pace = daily pace × ${c.month_total}.`;
   rows('#kpis', data.kpis); rows('#techs', data.techs, data.totals.techs); rows('#advisors', data.advisors, data.totals.advisors, true);
   const fields = $('#goal-fields'), summary = node('div', undefined, 'personal-list');
+  const units = {'Monthly gross profit':'GP $ / month','Average repair order':'$ per RO','Average quote':'$ per quote',
+                 'GP per billed hour':'GP $ / hour','Cars posted':'ROs / month'};
+  const groups = [
+    ['Shop · this month', [data.gp_rows[0], ...data.kpis].map(row => [row, row.label, units[row.label] || 'month'])],
+    ['Technicians · full week', data.techs.map(row => [row, row.label, 'hours / week'])],
+    ['Advisors · full week', data.advisors.map(row => [row, row.label, 'GP $ / week'])],
+  ];
   if (!dirty) fields.replaceChildren();
-  for (const key of ['techs','advisors']) for (const person of data[key]) {
-    if (!dirty) {
-      const label = node('label', `${person.label} · ${key === 'techs' ? 'hours / week' : 'GP $ / week'}`);
-      const input = node('input'); input.type = 'number'; input.min = '0'; input.max = '1000000'; input.step = '0.01'; input.dataset.key = person.goal_key; input.value = person.personal ?? ''; input.placeholder = 'Optional manager target'; label.append(input); fields.append(label);
-    }
-    if (person.personal !== null && person.personal !== undefined) {
-      const item = node('div', undefined, 'personal-item'); item.append(node('strong', person.label), node('span', `Target ${fmt(person.personal,person.kind)} · `), badge(person.personal_gap,person.kind)); summary.append(item);
+  for (const [title, items] of groups) {
+    if (!items.length) continue;
+    if (!dirty) fields.append(node('h3', title, 'goal-group-title'));
+    for (const [row, name, unit] of items) {
+      if (!dirty) {
+        const label = node('label', `${name} · ${unit}`);
+        const input = node('input'); input.type = 'number'; input.min = '0'; input.max = '1000000'; input.step = '0.01';
+        input.dataset.key = row.goal_key; input.value = row.personal ?? '';
+        input.placeholder = row.goal === null || row.goal === undefined ? 'No P&L goal · optional' : `P&L goal ${fmt(row.goal,row.kind)}`;
+        label.append(input); fields.append(label);
+      }
+      if (row.personal !== null && row.personal !== undefined) {
+        const item = node('div', undefined, 'personal-item');
+        item.append(node('strong', name), node('span', `Target ${fmt(row.personal,row.kind)} · `), badge(row.personal_gap,row.kind)); summary.append(item);
+      }
     }
   }
   if (!summary.children.length) summary.append(node('span','No manager targets yet. P&L goals are shown above.','muted small'));
   $('#personal-summary').replaceChildren(summary);
-  const dayBasis=Object.keys(settings.applied).length ? 'Working days use the manager edits noted above.' : 'Automatic working days follow his shop schedule, including closed days.';
+  const dayBasis=Object.keys(settings.applied).length ? 'Working days use the manager edits noted above.' : 'Automatic working days count weekdays, excluding scheduled closures.';
   $('#source-note').textContent = s.basis ? `Shop and advisor GP come from Paul’s saved daily actuals, through ${s.basis.actual_through || 'no actual days yet'}. ${dayBasis} Shop GP pace uses the MTD daily average for the month, week and day. Technician and advisor pace uses WTD actuals. ARO, quotes and posted sales use the current Tekmetric warehouse.` : 'Working days default to P&L; saved manager edits are noted above. Official goals come from P&L.';
   $('#freshness').textContent = `Tekmetric last synced: ${timeLabel(s.freshness.tekmetric)}. Report through ${s.as_of}. Refreshes every 60 seconds while this page is open.`;
   $('#reconciliation').hidden = !data.reconciliation;

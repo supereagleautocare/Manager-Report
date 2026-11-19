@@ -18,6 +18,24 @@ def metric(label, kind, actual, goal, pace=None, **extra):
                 gap=comparison - goal if comparison is not None and goal is not None else None, **extra)
 
 
+SHOP_GP_KEY = 'shop:Monthly gross profit'
+
+
+def goal_keys(source):
+    """Every manager goal the current report can hold: shop metrics and people."""
+    return ({SHOP_GP_KEY} | {f"kpis:{row['label']}" for row in source['kpis']}
+            | {f'{key}:{p["name"]}' for key in ('techs', 'advisors') for p in source[key]})
+
+
+def with_personal(row, key, personal):
+    """Attach a manager target, compared with pace when there is one, else actual."""
+    target = personal.get(key)
+    comparison = row['actual'] if row['pace'] is None else row['pace']
+    row.update(goal_key=key, personal=target,
+               personal_gap=comparison - target if target is not None and comparison is not None else None)
+    return row
+
+
 def dashboard(source, personal, working_days=None):
     source, calendar_settings = apply_working_days(source, working_days or {})
     days = source['calendar']
@@ -33,7 +51,9 @@ def dashboard(source, personal, working_days=None):
                multiply(daily_pace, week_days)),
         metric('Daily gross profit · average', 'money', daily_pace, daily_goal),
     ]
-    kpis = [metric(x['label'], x['kind'], x['actual'], x['goal'], x.get('pace')) for x in source['kpis']]
+    with_personal(gp_rows[0], SHOP_GP_KEY, personal)
+    kpis = [with_personal(metric(x['label'], x['kind'], x['actual'], x['goal'], x.get('pace')), f"kpis:{x['label']}", personal)
+            for x in source['kpis']]
     techs, advisors = [], []
     for section, key, output in [('techs', 'hours', techs), ('advisors', 'gp', advisors)]:
         for person in source[section]:

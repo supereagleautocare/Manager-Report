@@ -69,6 +69,29 @@ def test_mtd_shop_gp_pace_is_consistent_across_all_periods(source):
     assert data['gp_rows'][2]['actual']==pytest.approx(4818.68375)
 
 
+def test_daily_gp_matches_thirteen_weekday_average(source):
+    month_gp=53783.28
+    source['calendar'].update(month_elapsed=13,month_total=19,week_total=5)
+    source['gp'].update(mtd=month_gp,daily_pace=month_gp/13,
+                        month_pace=month_gp/13*19)
+    data=dashboard(source,{})
+    assert data['gp_rows'][0]['pace']==pytest.approx(month_gp/13*19)
+    assert data['gp_rows'][1]['pace']==pytest.approx(month_gp/13*5)
+    assert data['gp_rows'][2]['actual']==pytest.approx(4137.175384615385)
+
+
+def test_manager_can_set_shop_goals_beside_pnl_goals(source):
+    data=dashboard(source,{'shop:Monthly gross profit':110000,'kpis:Average repair order':500,'kpis:Cars posted':250})
+    monthly=data['gp_rows'][0]
+    assert monthly['goal']==125400 and monthly['personal']==110000
+    assert monthly['personal_gap']==100000-110000  # Monthly pace vs manager target.
+    aro=data['kpis'][0]
+    assert aro['goal']==600 and aro['personal_gap']==477-500  # Rate: actual vs target.
+    cars=data['kpis'][2]
+    assert cars['personal_gap']==237.5-250  # Count: month pace vs target.
+    assert data['kpis'][1]['personal'] is None and data['kpis'][1]['personal_gap'] is None
+
+
 def test_alias_keeps_persistent_goal_identity_and_missing_advisor_data(source):
     source['techs'][0].update(name='Chris Rapp',display_name='Vegas')
     source['advisors'][0]['actual']=None
@@ -180,6 +203,12 @@ def test_auth_csrf_goal_persistence_and_removal(app):
     assert other.get('/api/report').json['techs'][0]['goal'] == 20
     assert client.post('/api/goals',json={'techs:Robert':''},headers=headers).status_code == 200
     assert other.get('/api/report').json['techs'][0]['personal'] is None
+    shop={'shop:Monthly gross profit':150000,'kpis:Average repair order':550}
+    assert client.post('/api/goals',json=shop,headers=headers).status_code == 200
+    report=other.get('/api/report').json
+    assert report['gp_rows'][0]['personal']==150000 and report['gp_rows'][0]['goal']==125400
+    assert report['kpis'][0]['personal']==550
+    assert client.post('/api/goals',json={'kpis:Made up':1},headers=headers).status_code == 400
     assert client.get('/api/report?as_of=not-a-date').status_code == 400
     assert client.get('/api/report?as_of=2099-01-01').status_code == 400
     assert client.post('/logout',data={'csrf':csrf}).status_code == 302

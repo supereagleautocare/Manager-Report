@@ -19,11 +19,12 @@ existing calculations appear on refresh. If PNL changes its feed contract, the
 feed must retain schema version 1 or the manager app must be updated with it.
 
 The manager feed reads Paul's saved Daily Business Analysis daily GP actuals and
-working-day allocations. This preserves the shop's closed days (November 26?27
-are closed in the current 2026 workbook). Forecast rows are excluded: Paul's
-sheet distinguishes them by receipts below $0.01. Missing actual dates are shown
-as a warning, never counted as saved sales. The underlying PNL scoreboard and its
-payroll-based calculations are unchanged.
+working-day allocations. Pace calendars count weekdays, excluding the shop's
+scheduled closures (November 26?27 are closed in the current 2026 workbook).
+Weekend actual GP remains in the MTD total but does not add a pace day. Forecast
+rows are excluded: Paul's sheet distinguishes them by receipts below $0.01.
+Missing actual dates are shown as a warning, never counted as saved sales. The
+underlying PNL scoreboard and its payroll-based calculations are unchanged.
 
 Monthly, weekly and daily shop GP pace all use the same MTD daily average:
 MTD saved GP / elapsed shop working days, multiplied by the period's working
@@ -41,7 +42,12 @@ PNL; the older reference's goals are not substituted. Selecting November 11 show
 a reference comparison, including discrepancies in the reference's printed totals.
 Reference values never replace calculated actuals.
 
-Optional manager goals are separate full-week personal targets. Saving them does
+Optional manager goals (the **Manager goals** panel at the bottom) let the
+manager choose which goals to set: shop goals for the month (monthly GP, average
+repair order, average quote, GP per billed hour, cars posted) and full-week
+targets for each technician and advisor. Each field shows the P&L goal as a hint.
+Monthly GP and cars compare with month pace; the rate metrics compare with the
+MTD actual; staff targets compare with week pace. Saving them does
 not override PNL's official goals or update the source databases. Targets persist
 across dates and devices until changed, in the manager service's own SQLite file.
 People and totals reflect the rows PNL currently includes; missing official goals

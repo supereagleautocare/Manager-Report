@@ -36,12 +36,14 @@ def daily_summary(grid, as_of, monday, week_grids=()):
         if day in dated:
             raise ValueError('Daily Business Analysis has duplicate daily rows')
         dated[day] = row
-    # A positive daily allocation is Paul's working-day schedule. Holiday rows
-    # have no allocation and zero sales projection. Actual receipts keep a
-    # genuine zero-allocation trading day open. Never infer closures from sales alone.
+    # Pace counts weekdays only; weekend actuals remain in GP totals.
+    # A positive allocation is Paul's schedule; holiday rows have no allocation
+    # and zero projection. Actual receipts keep a zero-allocation weekday open.
     opened = {day for day, row in dated.items()
-              if (number(row[0]) or 0) > 0 or (value(row, 'sales projections') or 0) > 0
-              or (value(row, 'receipts') or 0) >= .01}
+              if day.weekday() < 5
+              and ((number(row[0]) or 0) > 0
+                   or (value(row, 'sales projections') or 0) > 0
+                   or (value(row, 'receipts') or 0) >= .01)}
     if not opened:
         raise ValueError('Daily Business Analysis has no working-day schedule')
     week_schedule = {day: day in opened for day in dated}
@@ -60,7 +62,8 @@ def daily_summary(grid, as_of, monday, week_grids=()):
     week_dates = [monday + dt.timedelta(days=i) for i in range(7)]
     # At a year boundary the preceding year's workbook may be absent. Preserve
     # PNL's weekday fallback only for dates whose schedule is actually missing.
-    week_open = {day for day in week_dates if week_schedule.get(day, day.weekday() < 5)}
+    week_open = {day for day in week_dates
+                 if day.weekday() < 5 and week_schedule.get(day, True)}
     # Paul's E/AA/AD formulas explicitly branch on receipts M < .01: such a row
     # is forecast, not actual. Exclude it even when its date has arrived.
     actual = {day: row for day, row in dated.items()
@@ -71,7 +74,10 @@ def daily_summary(grid, as_of, monday, week_grids=()):
         return sum(values) if all(v is not None for v in values) else None
     week = {day: row for day, row in actual.items() if day >= monday}
     week_elapsed = sum(day <= as_of for day in week_open)
-    month_elapsed = sum(day <= as_of for day in opened)
+    # Daily GP average = saved GP / working days that GP covers. A scheduled day
+    # whose actuals are not saved yet (e.g. today) must not count as elapsed.
+    through = max(actual) if actual else None
+    month_elapsed = sum(day <= through for day in opened) if through else 0
     gp_mtd = total('gross profit', actual) if actual else None
     gp_week = total('gross profit', week) if week else None
     hours = total('hours billed', actual)
@@ -85,6 +91,6 @@ def daily_summary(grid, as_of, monday, week_grids=()):
                 gp_mtd=gp_mtd, gp_week=gp_week,
                 gp_month_pace=gp_mtd / month_elapsed * len(opened) if gp_mtd is not None and month_elapsed else None,
                 gp_per_hour=gp_mtd / hours if gp_mtd is not None and hours else None,
-                advisor_margins=margins, actual_through=max(actual).isoformat() if actual else None,
+                advisor_margins=margins, actual_through=through.isoformat() if through else None,
                 missing_actual_dates=[str(day) for day in missing],
                 closed_dates=[str(day) for day in sorted(dated) if day.weekday() < 5 and day not in opened])
